@@ -8,6 +8,7 @@ output: html_document
 suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(foreign))
+suppressPackageStartupMessages(library(pander))
 ```
 
 
@@ -15,10 +16,12 @@ suppressPackageStartupMessages(library(foreign))
 
 Please indicate
 
-* Who you collaborated with:
-* Roughly how much time you spent on this HW:
-* What gave you the most trouble:
-* Any comments you have: 
+* Who you collaborated with: Ali Cook, Jacob Dixon
+* Roughly how much time you spent on this HW: 6 hours
+* What gave you the most trouble: Still doing e and f for question 1
+* Any comments you have: I am really enjoying working with the OKcupid data
+    I hope it is okay that I used the outline for regression that we did with 
+    The wine data from class (Lecture 11).
 
 
 
@@ -45,12 +48,77 @@ pollution <- read.dta(url) %>%
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
 
+no_mr <- select(pollution, nox, mort)
+  
+w <- ggplot(no_mr, aes(mort, nox)) + 
+  labs(title = "Mortality Rate per 100,000 vs. Nitric Oxide levels",
+  x = "Nitric Oxide Level", y = "Mortality Rate" )  + 
+  geom_point()
+
+#calculates regression- line of best fit
+nomr_model <- lm(mort ~ nox, data=pollution)
+nomr_model
+
+b <- coefficients(nomr_model)
+b
+
+#Fits the regression line
+w + geom_smooth(method = 'lm', size = 1, level = 0.95)
+
+
+#Residual Plot
+nomr_residual <- resid(nomr_model)
+nomr_fitted <- fitted(nomr_model)
+
+ggplot(data = NULL, aes(x = pollution$nox, y = nomr_residual)) +
+  geom_point() +
+  labs(title = "Residual Plot for Nitric Oxide Levels", 
+       x = "Nitric Oxide Levels", y = "Residuals") +
+  geom_line(y=0, size = 1, colour = "red")
+
+ggplot(data = NULL, aes(x = nomr_fitted, y = nomr_residual)) +
+  geom_point() +
+  labs(title = "Residual plot of Fitted Values", x = "Fitted Values", 
+       y = "Residuals") +
+  geom_line(y=0, size =1, colour = "red")
+
 ```
 
 
 ### b)
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
+
+no_mr2 <- select(pollution, nox, mort) %>% 
+  mutate(log_nox = log10(nox))
+
+x <- ggplot(no_mr2, aes(x = log_nox, y = mort)) +
+  geom_point() +
+  labs(title = "Mortality vs. log Nitric Oxide Levels", x = "Nitric Oxide Levels
+       (log10-scale)", y = "Mortality rate per 100,000 deations")
+
+#Building line of linear regression
+nomr2_model<- lm(mort ~ log_nox, no_mr2)
+nomr2_model
+summary(nomr2_model)
+
+x + geom_smooth(method = "lm")
+
+#Residual plot with log10(nox)
+nomr2_residual <- resid(nomr2_model)
+nomr2_fitted <- fitted(nomr2_model)
+
+ggplot(data = NULL, aes(x = no_mr2$log_nox, y = nomr2_residual)) +
+  geom_point() +
+  labs(title = "Residual Plot for Log10 Nitric Oxide Levels", 
+       x = "Nitric Oxide Levels (log10 scale)", y = "Residuals") +
+  geom_line(y=0, size = 1, colour = "red")
+
+ggplot(data = NULL, aes(x = nomr2_fitted, y = nomr2_residual)) +
+  geom_point() +
+  labs(title = "Residual plot of Fitted Values on log10 scale", x = "Fitted Values", 
+       y = "Residuals") +
+  geom_line(y=0, size =1, colour = "red")
 
 ```
 
@@ -59,12 +127,47 @@ pollution <- read.dta(url) %>%
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
 
+nomr2_model
+confint(nomr2_model)
+
+"
+The slope coefficient in this model is 35.311. This can be interpreted as 
+the increase in age-adjusted mortality for one unit increase of log10 Nitric 
+Oxide. We are 95% confident that the effect of no2 lies between 870 and 939 
+mortality increase for 100,000 people. 
+"
+
 ```
 
 
 ### d)
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
+
+misc <- select(pollution, nox, hc, so2, mort) %>% 
+  mutate(log_nox = log10(nox)) %>% 
+  mutate(log_hc = log10(hc)) %>% 
+  mutate(log_so2 = log10(so2))
+
+ggplot(data = misc, aes(x = hc, y = mort)) + geom_point()
+ggplot(data = misc, aes(x = so2, y = mort)) + geom_point()
+
+#A log10 scale would be again beneficial for this data set
+
+ggplot(data = misc, aes(x = log_hc, y = mort)) + geom_point()
+ggplot(data = misc, aes(x = log_so2, y = mort)) + geom_point()
+#Much better now
+
+misc_log_model  <- lm(mort~log_nox + log_hc + log_so2, data=misc)
+summary(misc_log_model)
+confint(misc_log_model)
+#Idea from http://www.statmethods.net/stats/regression.html
+layout(matrix(c(1,2,3,4),2,1)) 
+plot(misc_log_model)
+anova(misc_log_model)
+
+# The anova and the regression shows log_hc to have the most impact on 
+# mortality rate. shows hat log_hc is the most significant 
 
 ```
 
@@ -105,17 +208,200 @@ Lec09 to the project directory `HW-2`.
 
 ```{r, echo=FALSE, cache=TRUE}
 # DO NOT EDIT THIS SECTION!
+
+find.query <- function(char.vector, query){
+  which.has.query <- grep(query, char.vector, ignore.case = TRUE)
+  length(which.has.query) != 0
+}
+profile.has.query <- function(data.frame, query){
+  query <- tolower(query)
+  has.query <- apply(data.frame, 1, find.query, query=query)
+  return(has.query)
+}
+
 profiles <- read.csv("profiles.csv", header=TRUE) %>% tbl_df()
+
+#Binary scale for male or female
+gender <- profiles %>% select(sex, orientation, pets, diet) %>% 
+  mutate(is.female = ifelse(sex=="f", 1, 0))
+
 ```
 
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
-# Feel free to make multiple code blocks, but set echo, fig.width, fig.height as 
-# above
+#Can Pet preferences predict gender? Cat vs. Dog?
+
+#Find if user likes cats
+gender$likes_cats <- profile.has.query(data.frame = gender, query = "cat")
+
+###########First make a visualization
+pets <- gender %>% select(likes_cats, sex) %>% 
+  group_by(likes_cats, sex) %>% tally() 
+
+
+
+ggplot(pets, aes(x = likes_cats, y = n, fill = sex)) +
+  geom_bar(stat = "identity", position = "fill") +
+  labs(title = "Cat preference of Bay Area OKCupid Users",
+       x = "Fond of Cats", y = "% of Users")
+
+# From this you can see that women are more likely to like cats than men. Let's
+# look more definitively at the regression.
+
+
+######### Find the regression for fondness of cats to gender
+pets <- select(profiles, pets)
+profiles <- select(profiles, -pets)
+
+#This gives proportion of those who like cats to proportion female
+group_by(gender, likes_cats) %>% 
+  summarise(prop_female=mean(is.female))
+
+# Regression, coefficients, and fitted values
+model1 <- glm(is.female ~ likes_cats, data=gender, family=binomial)
+summary(model1)
+
+# We apply the inverse logit formula to the two cases of the regression
+# equation
+b1 <- coefficients(model1)
+b1
+1/(1+exp(-(b1[1] + 0*b1[2])))
+1/(1+exp(-(b1[1] + 1*b1[2])))
+
+# The inverse-logit of the two cases of the regression equation match the fitted
+# values.  
+table(fitted(model1))
+
+# Plot. Blue line likes cats. Red line does not specify. 
+p1 <- ggplot(data=gender, aes(x=likes_cats, y=is.female)) + 
+  xlab("likes cats") + ylab("is female?")
+p1 +
+  geom_jitter(width=0.5, height=0.5) + 
+  geom_hline(yintercept=1/(1+exp(-(b1[1] + 0*b1[2]))), col="red", size=2)+
+  geom_hline(yintercept=1/(1+exp(-(b1[1] + 1*b1[2]))), col="blue", size=2)
+
 ```
 
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
-# Feel free to make multiple code blocks, but set echo, fig.width, fig.height as 
-# above
+#Can diet preferences predict gender? Vegetarians?
+
+#########First show visualization
+
+# Search for the string "vegetarian" in diet
+gender$is_veg <- profile.has.query(data.frame = gender, query = "vegetarian")
+
+diet <- gender %>% select(is_veg, sex) %>% 
+  group_by(is_veg, sex) %>% tally() 
+
+ggplot(diet, aes(x = is_veg, y = n, fill = sex)) +
+  geom_bar(stat = "identity", position = "fill") +
+  labs(title = "Vegetarianism of Bay Area OKCupid Users by Gender",
+       x = "Is user vegetarian?", y = "% of Users")
+
+# From this, you can see that females are more likely to be vegetarian then men.
+# Let's look more definitively by finding the linear regression
+
+###########Now determine regression for vegetarian
+
+# Split off the essays into a separate data.frame
+diet2 <- select(profiles, diet)
+profiles <- select(profiles, -diet)
+
+#This gives proportion of those who are vegetarian to proportion female
+group_by(gender, is_veg) %>% 
+  summarise(prop_female=mean(is.female))
+
+
+# Regression, coefficients, and fitted values: we now include the is_veg
+# predictor variable
+model2 <- glm(is.female ~ is_veg, data=gender, family=binomial)
+summary(model2)
+
+# We apply the inverse logit formula to the two cases of the regression
+# equation
+b1 <- coefficients(model2)
+b1
+1/(1+exp(-(b1[1] + 0*b1[2])))
+1/(1+exp(-(b1[1] + 1*b1[2])))
+
+# The inverse-logit of the two cases of the regression equation match the fitted
+# values. 
+table(fitted(model1))
+
+# Plot.
+p1 <- ggplot(data=gender, aes(x=is_veg, y=is.female)) + 
+  xlab("is_veg") + ylab("is female?")
+# We add the fitted probabilities:
+# -blue line for those who are vegetarian (or partially) (left column)
+# -red for those who are not (right column)
+p1 +
+  geom_jitter(width=0.5, height=0.5) + 
+  geom_hline(yintercept=1/(1+exp(-(b1[1] + 0*b1[2]))), col="red", size=2)+
+  geom_hline(yintercept=1/(1+exp(-(b1[1] + 1*b1[2]))), col="blue", size=2)
+
+```
+
+```{r, echo=FALSE, fig.width=12, fig.height=6}
+
+#Can sexual orientation predict gender?
+
+#####First make a visualization
+
+orientation <- profiles %>% select(orientation, sex) %>% 
+   group_by(orientation, sex) %>% tally() 
+
+ggplot(orientation, aes(x = orientation, y = n, fill = sex)) +
+  geom_bar(stat = "identity", position = "fill") +
+  labs(title = "Sexual Orientation of Bay Area OKCupid Users by Gender",
+                x = "Sexual Orientation", y = "% of Users")
+
+# From this plot, you can see that more women identify as bisexual then men. You
+# Can also see that more men I identify as gay or as straight. This could be 
+# because there are more men then women on OKcupid. This also leaves out other
+# queer identities, so it is not comprehensive.  
+
+# To confirm that bisexuality is a predictor of gender on OKcupid in the Bay 
+# Area, let's find the linear regression. 
+
+# Linear Regression of Bisexuality to Gender
+
+sexuality <- select(profiles, orientation)
+profiles <- select(profiles, -orientation)
+
+#This gives proportion of sexual orientation based off gender
+gender %>% filter(orientation != "gay") %>% 
+  group_by(orientation) %>% 
+  summarise(prop_female=mean(is.female))
+
+
+# Regression, coefficients, and fitted values: we now include the orientation
+# predictor variable
+model3 <- glm(is.female ~ orientation, data=gender, family=binomial)
+summary(model3)
+
+# We apply the inverse logit formula to the two cases of the regression
+# equation
+b1 <- coefficients(model3)
+b1
+1/(1+exp(-(b1[1] + 0*b1[2])))
+1/(1+exp(-(b1[1] + 1*b1[2])))
+
+
+# The inverse-logit of the two cases of the regression equation match the fitted
+# values. 
+table(fitted(model1))
+
+# Plot
+# Red is regression for bisexuality and female
+# Blue is regression for straight and female
+
+p1 <- ggplot(data=gender, aes(x=orientation, y=is.female)) + 
+  labs(title = "Bisexuality of Bay Area OKCupid Users by Gender", 
+      x= "Orientation", y = "Gender")
+p1 +
+  geom_jitter(width=0.5, height=0.5) + 
+  geom_hline(yintercept=1/(1+exp(-(b1[1] + 0*b1[2]))), col="red", size=2)+
+  geom_hline(yintercept=1/(1+exp(-(b1[1] + 1*b1[2]))), col="blue", size=2)
+
 ```
