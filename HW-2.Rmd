@@ -1,6 +1,6 @@
 ---
 title: "MATH 216 Homework 2"
-author: "Andrew Holtz""
+author: "Andrew Holtz"
 output: html_document
 ---
 
@@ -9,6 +9,8 @@ suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(foreign))
 suppressPackageStartupMessages(library(pander))
+suppressPackageStartupMessages(library(knitr))
+
 ```
 
 
@@ -17,7 +19,7 @@ suppressPackageStartupMessages(library(pander))
 Please indicate
 
 * Who you collaborated with: Ali Cook, Jacob Dixon
-* Roughly how much time you spent on this HW: 6 hours
+* Roughly how much time you spent on this HW: 8 hours
 * What gave you the most trouble: Still doing e and f for question 1
 * Any comments you have: I am really enjoying working with the OKcupid data
     I hope it is okay that I used the outline for regression that we did with 
@@ -154,33 +156,57 @@ ggplot(data = misc, aes(x = so2, y = mort)) + geom_point()
 
 #A log10 scale would be again beneficial for this data set
 
-ggplot(data = misc, aes(x = log_hc, y = mort)) + geom_point()
-ggplot(data = misc, aes(x = log_so2, y = mort)) + geom_point()
-#Much better now
+ggplot(data = misc, aes(x = log_hc, y = mort)) + geom_point(colour = "orange") + geom_smooth(method = 'lm', size  = 1, colour = "orange", level = 0.95)
+ggplot(data = misc, aes(x = log_so2, y = mort)) + geom_point(colour = "blue") + geom_smooth(method = 'lm', size = 1, colour = "blue", level = 0.95)
+ggplot(data = misc, aes(x = log_nox, y = mort)) + geom_point(colour = "red") + geom_smooth(method = 'lm', size = 1, colour = "red", level = 0.95)
+
+#This plot attemps at combining the above three plots onto one. I cannot seem to get 
+#more than one geom_smooth on a plot though. 
+Final_plot <- ggplot(data = misc) +
+  geom_jitter(aes(x = log_hc, y = mort), colour = "orange") + geom_smooth(aes(x = log_hc, y = mort), method = 'lm', size  = 1, colour = "orange", level = 0.95, se = FALSE) +
+  geom_jitter(aes(x = log_so2, y = mort), colour = "blue") + geom_smooth(aes(x = log_hc, y = mort), method = 'lm', size  = 1, colour = "blue", level = 0.95, se = FALSE) +
+  geom_jitter(aes(x = log_nox, y = mort), colour = "red") + geom_smooth(aes(x = log_hc, y = mort), method = 'lm', size  = 1, colour = "red", level = 0.95, se = FALSE)
+
+
+#Linear Regression Model
 
 misc_log_model  <- lm(mort~log_nox + log_hc + log_so2, data=misc)
 summary(misc_log_model)
-confint(misc_log_model)
-#Idea from http://www.statmethods.net/stats/regression.html
-layout(matrix(c(1,2,3,4),2,1)) 
-plot(misc_log_model)
-anova(misc_log_model)
+coefficients(misc_log_model)
 
-# The anova and the regression shows log_hc to have the most impact on 
-# mortality rate. shows hat log_hc is the most significant 
-
+kable(confint(misc_log_model))
 ```
+An increase on one percent in the adjusted mortality rate is associated with an
+increase of 134.32 levels of Nitric Oxide, 27.08 levels of sulfur dioxide, and
+-131.93 levels of hydrocarbons. 
+-
 
 
 ### e)
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
 
+half1_misc <- slice(misc, 1:30)
+
+half1_lm  <- lm(mort~log_nox + log_hc + log_so2, data=half1_misc)
+summary(half1_lm)
+confint(half1_lm)
+
+new_x <- slice(misc, 31:60)
+
+predictions <- predict(half1_lm, new_x)
+
+predicted_results <- cbind("Predicted Values" = predictions, "Observed Values" = new_x$mort)
+kable(predicted_results)
+
 ```
 
 
 ### f) What do you think are the reasons for using cross-validation?
-
+Cross-validation tests the accuracy of a regression. It is a method to determine
+how well a model explains a group of data. If the data were to continue, could 
+the model predict the future points? It is a test for how the model would 
+perform when dealing with "new" data. 
 
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
@@ -226,18 +252,19 @@ gender <- profiles %>% select(sex, orientation, pets, diet) %>%
   mutate(is.female = ifelse(sex=="f", 1, 0))
 
 ```
-
+Can Pet preferences predict gender? Cat vs. Dog?
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
-#Can Pet preferences predict gender? Cat vs. Dog?
 
 #Find if user likes cats
-gender$likes_cats <- profile.has.query(data.frame = gender, query = "cat")
+gender$cats <- profile.has.query(data.frame = gender, query = "cat")
+gender$dislikes_cats <-profile.has.query(data.frame = gender, query = "dislikes cat")
+gender <- gender %>% mutate(likes_cats = ifelse(cats==TRUE & dislikes_cats ==FALSE, 1, 0))
+
 
 ###########First make a visualization
 pets <- gender %>% select(likes_cats, sex) %>% 
   group_by(likes_cats, sex) %>% tally() 
-
 
 
 ggplot(pets, aes(x = likes_cats, y = n, fill = sex)) +
@@ -245,7 +272,7 @@ ggplot(pets, aes(x = likes_cats, y = n, fill = sex)) +
   labs(title = "Cat preference of Bay Area OKCupid Users",
        x = "Fond of Cats", y = "% of Users")
 
-# From this you can see that women are more likely to like cats than men. Let's
+# From this you can see that women are more likely to like cats than not. Let's
 # look more definitively at the regression.
 
 
@@ -273,18 +300,21 @@ b1
 table(fitted(model1))
 
 # Plot. Blue line likes cats. Red line does not specify. 
-p1 <- ggplot(data=gender, aes(x=likes_cats, y=is.female)) + 
-  xlab("likes cats") + ylab("is female?")
+p1 <- ggplot(data=gender, aes(x=likes_cats, y=is.female)) +  labs(title = "Cat Preferences of Bay Area OKCupid Users by Gender", 
+      x= "Likes Cats? (1 yes, 0 no)", y = "Gender")
 p1 +
   geom_jitter(width=0.5, height=0.5) + 
   geom_hline(yintercept=1/(1+exp(-(b1[1] + 0*b1[2]))), col="red", size=2)+
   geom_hline(yintercept=1/(1+exp(-(b1[1] + 1*b1[2]))), col="blue", size=2)
 
+#This shows barely a correlation. Perhaps likeness for cats is not a good
+#predictor of gender. 
 ```
 
+Can diet preferences predict gender? Vegetarians?
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
-#Can diet preferences predict gender? Vegetarians?
+
 
 #########First show visualization
 
@@ -330,8 +360,8 @@ b1
 table(fitted(model1))
 
 # Plot.
-p1 <- ggplot(data=gender, aes(x=is_veg, y=is.female)) + 
-  xlab("is_veg") + ylab("is female?")
+p1 <- ggplot(data=gender, aes(x=is_veg, y=is.female)) + labs(title = "Vegetarianism of OKCupid Users by Gender", x= "Is Vegetarian?", y = "Gender")
+
 # We add the fitted probabilities:
 # -blue line for those who are vegetarian (or partially) (left column)
 # -red for those who are not (right column)
@@ -342,9 +372,11 @@ p1 +
 
 ```
 
+Can bisexuality predict gender?
+
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
 
-#Can sexual orientation predict gender?
+
 
 #####First make a visualization
 
@@ -369,8 +401,12 @@ ggplot(orientation, aes(x = orientation, y = n, fill = sex)) +
 sexuality <- select(profiles, orientation)
 profiles <- select(profiles, -orientation)
 
-#This gives proportion of sexual orientation based off gender
-gender %>% filter(orientation != "gay") %>% 
+#This gives proportion of bisexual vs. straight based off gender
+
+
+gender <- gender %>%  filter(orientation != "gay") 
+
+gender %>% 
   group_by(orientation) %>% 
   summarise(prop_female=mean(is.female))
 
@@ -405,3 +441,6 @@ p1 +
   geom_hline(yintercept=1/(1+exp(-(b1[1] + 1*b1[2]))), col="blue", size=2)
 
 ```
+From this plot, you can see that women are more likely to be bisexual than men
+on OKcupid. 
+
