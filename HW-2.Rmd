@@ -19,8 +19,8 @@ suppressPackageStartupMessages(library(knitr))
 Please indicate
 
 * Who you collaborated with: Ali Cook, Jacob Dixon
-* Roughly how much time you spent on this HW: 8 hours
-* What gave you the most trouble: Still doing e and f for question 1
+* Roughly how much time you spent on this HW: 12 hours
+* What gave you the most trouble: Deciding what was worth making a regression for. 
 * Any comments you have: I am really enjoying working with the OKcupid data
     I hope it is okay that I used the outline for regression that we did with 
     The wine data from class (Lecture 11).
@@ -52,30 +52,32 @@ pollution <- read.dta(url) %>%
 
 no_mr <- select(pollution, nox, mort)
   
-w <- ggplot(no_mr, aes(mort, nox)) + 
+w <- ggplot(data = no_mr, aes(x = nox, y = mort)) + 
   labs(title = "Mortality Rate per 100,000 vs. Nitric Oxide levels",
   x = "Nitric Oxide Level", y = "Mortality Rate" )  + 
-  geom_point()
+  geom_point() +
+  #Fits the regression line
+  geom_smooth(method = 'lm', size = 1, level = 0.95)
+
+w
 
 #calculates regression- line of best fit
 nomr_model <- lm(mort ~ nox, data=pollution)
-nomr_model
+pander(nomr_model, digits = 3)
 
-b <- coefficients(nomr_model)
-b
+b <- coefficients(nomr_model) 
+b %>% round(3)
 
-#Fits the regression line
-w + geom_smooth(method = 'lm', size = 1, level = 0.95)
 
 
 #Residual Plot
 nomr_residual <- resid(nomr_model)
 nomr_fitted <- fitted(nomr_model)
 
-ggplot(data = NULL, aes(x = pollution$nox, y = nomr_residual)) +
+ggplot(data = pollution, aes(x = nox, y = nomr_residual)) +
   geom_point() +
   labs(title = "Residual Plot for Nitric Oxide Levels", 
-       x = "Nitric Oxide Levels", y = "Residuals") +
+       x = "Relative Nitric Oxide Levels", y = "Residuals") +
   geom_line(y=0, size = 1, colour = "red")
 
 ggplot(data = NULL, aes(x = nomr_fitted, y = nomr_residual)) +
@@ -85,6 +87,7 @@ ggplot(data = NULL, aes(x = nomr_fitted, y = nomr_residual)) +
   geom_line(y=0, size =1, colour = "red")
 
 ```
+The linear regression for this data does not fit the data. One can see that the values are condensed to the left side of the x axis between 0-100. The linear model shows on first plot shows that the linear regression line does not fit the data well, and the residual plot shows a lot of variaiton with points being on one side, rather than evenly distributed. The model does not fit the data well. 
 
 
 ### b)
@@ -97,23 +100,27 @@ no_mr2 <- select(pollution, nox, mort) %>%
 x <- ggplot(no_mr2, aes(x = log_nox, y = mort)) +
   geom_point() +
   labs(title = "Mortality vs. log Nitric Oxide Levels", x = "Nitric Oxide Levels
-       (log10-scale)", y = "Mortality rate per 100,000 deations")
+       (log10-scale)", y = "Mortality rate per 100,000 deations") +
+  geom_smooth(method = "lm")
+
+x
 
 #Building line of linear regression
-nomr2_model<- lm(mort ~ log_nox, no_mr2)
-nomr2_model
-summary(nomr2_model)
+nomr2_model<- lm(mort ~ log_nox, data = no_mr2)
+pander(nomr2_model)
 
-x + geom_smooth(method = "lm")
+
+q <- coefficients(nomr2_model) 
+q %>% round(3)
 
 #Residual plot with log10(nox)
 nomr2_residual <- resid(nomr2_model)
 nomr2_fitted <- fitted(nomr2_model)
 
-ggplot(data = NULL, aes(x = no_mr2$log_nox, y = nomr2_residual)) +
+ggplot(data = no_mr2, aes(x = log_nox, y = nomr2_residual)) +
   geom_point() +
   labs(title = "Residual Plot for Log10 Nitric Oxide Levels", 
-       x = "Nitric Oxide Levels (log10 scale)", y = "Residuals") +
+       x = "Log of Nitric Oxide Levels", y = "Residuals") +
   geom_line(y=0, size = 1, colour = "red")
 
 ggplot(data = NULL, aes(x = nomr2_fitted, y = nomr2_residual)) +
@@ -123,23 +130,20 @@ ggplot(data = NULL, aes(x = nomr2_fitted, y = nomr2_residual)) +
   geom_line(y=0, size =1, colour = "red")
 
 ```
-
+After log-transformating the nitric oxiide pollution, the linear regression model fits the data much better. One can see looking at residual graph that the standard error is smaller when the nitric oxide is log-transformed compared to the pre-transformed data. The points are more randomly dispersed rather than clumped together. The log-transformed linear regression shows a positive relationship (35.311), while the non-transformed linear regression showed a negative relationship of nitric oxide pollution to mortality, meaning there is a possibility that an increase in nitric oxide could lead to increased mortality. We do not know enough to make this conclusion, however. 
 
 ### c)
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
 
 nomr2_model
-confint(nomr2_model)
+c <- confint(nomr2_model)
+kable(c, digits = 3)
 
-"
-The slope coefficient in this model is 35.311. This can be interpreted as 
-the increase in age-adjusted mortality for one unit increase of log10 Nitric 
-Oxide. We are 95% confident that the effect of no2 lies between 870 and 939 
-mortality increase for 100,000 people. 
-"
 
 ```
+
+The slope coefficient in this model is 35.311. This can be interpreted as the increase in age-adjusted mortality for each multiplicative increase of a factor of 10 in Nitric  Oxide. We are 95% confident that the effect of no2 lies between 870 and 939 mortality increase for 100,000 people. 
 
 
 ### d)
@@ -149,7 +153,7 @@ mortality increase for 100,000 people.
 misc <- select(pollution, nox, hc, so2, mort) %>% 
   mutate(log_nox = log10(nox)) %>% 
   mutate(log_hc = log10(hc)) %>% 
-  mutate(log_so2 = log10(so2))
+  mutate(log_so2 = log10(so2)) 
 
 ggplot(data = misc, aes(x = hc, y = mort)) + geom_point()
 ggplot(data = misc, aes(x = so2, y = mort)) + geom_point()
@@ -174,49 +178,61 @@ misc_log_model  <- lm(mort~log_nox + log_hc + log_so2, data=misc)
 summary(misc_log_model)
 coefficients(misc_log_model)
 
-kable(confint(misc_log_model))
+kable(confint(misc_log_model), digits = 3)
+"\n"
 ```
-An increase on one percent in the adjusted mortality rate is associated with an
-increase of 134.32 levels of Nitric Oxide, 27.08 levels of sulfur dioxide, and
--131.93 levels of hydrocarbons. 
--
+
+
+For each multiplicative increase of a factor of 10 in NOX, HC, and SO2 there is an increase in adjusted mortality rate of 134.32, -131.93, and 27.08. The 95% confidence interval excludes 0 for nitric oxide and hydrocarbons, but includes 0 for SO2. Therefore, SO2 is not a significant predicter itself, but nitric oxide and hydrocarbons could have a relationship to mortality rate; nitric oxide having a positive relationship and hydrocarbons having a negative relationship. 
 
 
 ### e)
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
 
-half1_misc <- slice(misc, 1:30)
+#Randomly select 30 observations
+
+misc <- mutate(misc, count = 1:60)
+half1_misc <- misc %>% sample_n(30, replace = FALSE)
+
+new_x <- misc[!(misc$count %in% half1_misc$count),]
 
 half1_lm  <- lm(mort~log_nox + log_hc + log_so2, data=half1_misc)
 summary(half1_lm)
 confint(half1_lm)
 
-new_x <- slice(misc, 31:60)
-
 predictions <- predict(half1_lm, new_x)
 
-predicted_results <- cbind("Predicted Values" = predictions, "Observed Values" = new_x$mort)
-kable(predicted_results)
+# Scatterplot to compare predicted vs. actual y values.
+# Line is y=x. 
+ggplot(data = NULL, aes(x = new_x$mort, y = predictions)) +
+  geom_point()+
+  geom_abline(intercept = 0, slope = 1, size = 1, colour = "red") +
+  labs(title = "Mortality Rate Predictions", x= "Observed Mortality Rate", y = "Predicted Mortality Rate")
+
+
+#Residual for predicted values vs. observed values
+predictions.lm = lm(new_x$mort ~ predictions, data=NULL) 
+predictions.res = resid(predictions.lm)
+
+#We now plot the residual against the observed values of the variable waiting.
+ggplot(data = NULL, aes(x = predictions, y = predictions.res)) +
+  geom_point() +
+  labs(title = "Residual Plot for Prediction vs. Observation", 
+       x = "Predictions", y = "Residuals") +
+  geom_line(y=0, size = 1, colour = "red")
 
 ```
 
+One can see that the plot above shows the predicted mortality rate vs. the 
+observed mortality rate. This plot shows the adaptability of the linear 
+regression model for new (predicted) values. y=x is overlayed on the plot. 
+Point on the plot are close to the y=x plot, which can be seen more clearly
+in the residual plot. The majority of the points are betwen 50 and -50 units
+from the y=x line. 
 
 ### f) What do you think are the reasons for using cross-validation?
-Cross-validation tests the accuracy of a regression. It is a method to determine
-how well a model explains a group of data. If the data were to continue, could 
-the model predict the future points? It is a test for how the model would 
-perform when dealing with "new" data. 
-
-
-```{r, echo=FALSE, fig.width=12, fig.height=6}
-
-```
-
-
-
-
-
+ It is a test for how the model would perform when dealing with "new" data. It tests for overfitting a dataset. A model can become too specific and customized for one dataset, that is underperforms when encountering new data. 
 
 
 ## Question 2:
@@ -252,25 +268,36 @@ gender <- profiles %>% select(sex, orientation, pets, diet) %>%
   mutate(is.female = ifelse(sex=="f", 1, 0))
 
 ```
-Can Pet preferences predict gender? Cat vs. Dog?
+####**1.) Can Pet preferences predict gender? Cat vs. Dog?**
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
 
-#Find if user likes cats
+#Find if user likes cats or dogs
 gender$cats <- profile.has.query(data.frame = gender, query = "cat")
+gender$dogs <- profile.has.query(data.frame = gender, query = "dog")
+
+#Removes answers if user dislikes cats or dogs
 gender$dislikes_cats <-profile.has.query(data.frame = gender, query = "dislikes cat")
+gender$dislikes_dogs <-profile.has.query(data.frame = gender, query = "dislikes dog")
+
+#Makes binary code if user likes cats or not
 gender <- gender %>% mutate(likes_cats = ifelse(cats==TRUE & dislikes_cats ==FALSE, 1, 0))
+#Makes binary code if user likes dogs or not
+gender <- gender %>% mutate(likes_dogs = ifelse(dogs==TRUE & dislikes_dogs ==FALSE, 2, 0))
 
 
 ###########First make a visualization
-pets <- gender %>% select(likes_cats, sex) %>% 
-  group_by(likes_cats, sex) %>% tally() 
+pets <- gender %>% select(likes_cats, likes_dogs, sex) %>% 
+  group_by(likes_cats, likes_dogs, sex) %>% tally() 
+
+pets <- pets %>% mutate(pref = (likes_cats + likes_dogs))
+
+#Visualization for liking Cats
+ggplot(data = pets) + geom_bar(aes(x = sex, y = n, fill = pref), stat = "identity", position = "fill") +
+  labs(title = "Pet preference of Bay Area OKCupid Users: 3- Likes Dogs and Cats, 2 - Likes just Dogs, 1 -Likes just Cats, 0- Does not like Cats of Dogs",
+       x = "Gender", y = "% of Users")
 
 
-ggplot(pets, aes(x = likes_cats, y = n, fill = sex)) +
-  geom_bar(stat = "identity", position = "fill") +
-  labs(title = "Cat preference of Bay Area OKCupid Users",
-       x = "Fond of Cats", y = "% of Users")
 
 # From this you can see that women are more likely to like cats than not. Let's
 # look more definitively at the regression.
@@ -282,36 +309,49 @@ profiles <- select(profiles, -pets)
 
 #This gives proportion of those who like cats to proportion female
 group_by(gender, likes_cats) %>% 
-  summarise(prop_female=mean(is.female))
+  summarise(
+    prop_female=mean(is.female),
+    prop_female=round(prop_female, 3)
+  ) %>% 
+  kable()
 
 # Regression, coefficients, and fitted values
 model1 <- glm(is.female ~ likes_cats, data=gender, family=binomial)
-summary(model1)
+sum_mod1 <- summary(model1)
+pander(sum_mod1)
 
 # We apply the inverse logit formula to the two cases of the regression
 # equation
 b1 <- coefficients(model1)
 b1
-1/(1+exp(-(b1[1] + 0*b1[2])))
-1/(1+exp(-(b1[1] + 1*b1[2])))
+x <- 1/(1+exp(-(b1[1] + 0*b1[2])))
+x %>% round(3)
+c <- 1/(1+exp(-(b1[1] + 1*b1[2])))
+c %>% round(3)
 
-# The inverse-logit of the two cases of the regression equation match the fitted
-# values.  
-table(fitted(model1))
 
-# Plot. Blue line likes cats. Red line does not specify. 
+# Plot. Blue line likes cats. Red line does not  
 p1 <- ggplot(data=gender, aes(x=likes_cats, y=is.female)) +  labs(title = "Cat Preferences of Bay Area OKCupid Users by Gender", 
-      x= "Likes Cats? (1 yes, 0 no)", y = "Gender")
+      x= "Likes Cats? (1 Yes, 0 No)", y = "Gender (1 Female, 0 Male")
 p1 +
-  geom_jitter(width=0.5, height=0.5) + 
-  geom_hline(yintercept=1/(1+exp(-(b1[1] + 0*b1[2]))), col="red", size=2)+
-  geom_hline(yintercept=1/(1+exp(-(b1[1] + 1*b1[2]))), col="blue", size=2)
+  geom_jitter(width=0.5, height=0.5, alpha = 0.2) + 
+  geom_hline(yintercept=x, col="red", size=2) +
+  geom_hline(yintercept=c, col="blue", size=2)
 
 #This shows barely a correlation. Perhaps likeness for cats is not a good
 #predictor of gender. 
 ```
+This shows a very weak relationship between cat fondness and gender. The
+horizontal lines show the average- in other words, those people who don't like
+cats have a gender score of 0.379- which means more men than female. For people
+who do like cats, the gender score is 0.433, meaning there are more men than 
+female that like cats. But having a cat is has a greater gender score, meaning
+it is more correlated to females than not having a cat. But all things 
+considered, the relationship is weak. It is important to note that some users
+did not list sexual orientation, so there were some users not included. 
 
-Can diet preferences predict gender? Vegetarians?
+
+####**2.) Can diet preferences predict gender? Vegetarians?**
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
 
@@ -324,10 +364,10 @@ gender$is_veg <- profile.has.query(data.frame = gender, query = "vegetarian")
 diet <- gender %>% select(is_veg, sex) %>% 
   group_by(is_veg, sex) %>% tally() 
 
-ggplot(diet, aes(x = is_veg, y = n, fill = sex)) +
+ggplot(diet, aes(x = sex, y = n, fill = is_veg)) +
   geom_bar(stat = "identity", position = "fill") +
   labs(title = "Vegetarianism of Bay Area OKCupid Users by Gender",
-       x = "Is user vegetarian?", y = "% of Users")
+       x = "Gender", y = "% of Users")
 
 # From this, you can see that females are more likely to be vegetarian then men.
 # Let's look more definitively by finding the linear regression
@@ -340,7 +380,8 @@ profiles <- select(profiles, -diet)
 
 #This gives proportion of those who are vegetarian to proportion female
 group_by(gender, is_veg) %>% 
-  summarise(prop_female=mean(is.female))
+  summarise(prop_female=mean(is.female)) %>% 
+  kable()
 
 
 # Regression, coefficients, and fitted values: we now include the is_veg
@@ -350,29 +391,35 @@ summary(model2)
 
 # We apply the inverse logit formula to the two cases of the regression
 # equation
-b1 <- coefficients(model2)
-b1
-1/(1+exp(-(b1[1] + 0*b1[2])))
-1/(1+exp(-(b1[1] + 1*b1[2])))
+b2 <- coefficients(model2)
+b2
+e0 <- 1/(1+exp(-(b2[1] + 0*b2[2])))
+e0 %>% round(3)
+e1 <- 1/(1+exp(-(b2[1] + 1*b2[2]))) 
+e1 %>% round(3)
 
-# The inverse-logit of the two cases of the regression equation match the fitted
-# values. 
-table(fitted(model1))
 
 # Plot.
-p1 <- ggplot(data=gender, aes(x=is_veg, y=is.female)) + labs(title = "Vegetarianism of OKCupid Users by Gender", x= "Is Vegetarian?", y = "Gender")
+p2 <- ggplot(data=gender, aes(x=is_veg, y=is.female)) + labs(title = "Vegetarianism of OKCupid Users by Gender", x= "Is Vegetarian?", y = "Gender (1-F, 0-M")
 
 # We add the fitted probabilities:
 # -blue line for those who are vegetarian (or partially) (left column)
 # -red for those who are not (right column)
-p1 +
-  geom_jitter(width=0.5, height=0.5) + 
-  geom_hline(yintercept=1/(1+exp(-(b1[1] + 0*b1[2]))), col="red", size=2)+
-  geom_hline(yintercept=1/(1+exp(-(b1[1] + 1*b1[2]))), col="blue", size=2)
+p2 +
+  geom_jitter(width=0.5, height=0.5, alpha = 0.5) + 
+  geom_hline(yintercept=e0, col="red", size=2)+
+  geom_hline(yintercept=e1, col="blue", size=2)
 
 ```
+The data from above shows that women do tend to be vegetarian's more than men,
+but the slope of the regression is 0.6682. Looking at the plot that is created
+above, one can see that there is not much difference in gender specification 
+comparing vegetarians vs. non vegetarians (0.3886 Non vs. 0.5535 Veg). Diet is
+not the greatest predictor of gender. It is important to note that some users
+did not list cat-dog preference, so there were some users not included. 
 
-Can bisexuality predict gender?
+
+####**3.) Can bisexuality predict gender?**
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
 
@@ -383,15 +430,14 @@ Can bisexuality predict gender?
 orientation <- profiles %>% select(orientation, sex) %>% 
    group_by(orientation, sex) %>% tally() 
 
-ggplot(orientation, aes(x = orientation, y = n, fill = sex)) +
+ggplot(orientation, aes(x = sex, y = n, fill = orientation)) +
   geom_bar(stat = "identity", position = "fill") +
   labs(title = "Sexual Orientation of Bay Area OKCupid Users by Gender",
-                x = "Sexual Orientation", y = "% of Users")
+                x = "Gender", y = "% of Users")
 
 # From this plot, you can see that more women identify as bisexual then men. You
-# Can also see that more men I identify as gay or as straight. This could be 
-# because there are more men then women on OKcupid. This also leaves out other
-# queer identities, so it is not comprehensive.  
+# Can also see that more men identify as gay. This also leaves out other
+# LGBTQ identities, so it is not comprehensive.  
 
 # To confirm that bisexuality is a predictor of gender on OKcupid in the Bay 
 # Area, let's find the linear regression. 
@@ -404,43 +450,50 @@ profiles <- select(profiles, -orientation)
 #This gives proportion of bisexual vs. straight based off gender
 
 
-gender <- gender %>%  filter(orientation != "gay") 
+gender_no <- gender %>%  filter(orientation != "gay") 
 
-gender %>% 
+gender_no %>% 
   group_by(orientation) %>% 
-  summarise(prop_female=mean(is.female))
+  summarise(prop_female=mean(is.female)) %>% 
+  kable(digits = 3)
 
 
 # Regression, coefficients, and fitted values: we now include the orientation
 # predictor variable
-model3 <- glm(is.female ~ orientation, data=gender, family=binomial)
-summary(model3)
+model3 <- glm(is.female ~ orientation, data=gender_no, family=binomial)
+pander(model3, digits =3)
 
 # We apply the inverse logit formula to the two cases of the regression
 # equation
-b1 <- coefficients(model3)
-b1
-1/(1+exp(-(b1[1] + 0*b1[2])))
-1/(1+exp(-(b1[1] + 1*b1[2])))
+b3 <- coefficients(model3)
+b3
+f0 <- 1/(1+exp(-(b3[1] + 0*b3[2])))
+f0 %>% round(3)
+f1 <- 1/(1+exp(-(b3[1] + 1*b3[2])))
+f1 %>% round(3)
 
-
-# The inverse-logit of the two cases of the regression equation match the fitted
-# values. 
-table(fitted(model1))
 
 # Plot
 # Red is regression for bisexuality and female
 # Blue is regression for straight and female
 
-p1 <- ggplot(data=gender, aes(x=orientation, y=is.female)) + 
+p3 <- ggplot(data=gender_no, aes(x=orientation, y=is.female)) + 
   labs(title = "Bisexuality of Bay Area OKCupid Users by Gender", 
-      x= "Orientation", y = "Gender")
-p1 +
-  geom_jitter(width=0.5, height=0.5) + 
-  geom_hline(yintercept=1/(1+exp(-(b1[1] + 0*b1[2]))), col="red", size=2)+
-  geom_hline(yintercept=1/(1+exp(-(b1[1] + 1*b1[2]))), col="blue", size=2)
+      x= "Orientation", y = "Gender (1-F, 0-M)")
+p3 +
+  geom_jitter(width=0.5, height=0.5, alpha = 0.5) + 
+  geom_hline(yintercept=f0, col="red", size=2)+
+  geom_hline(yintercept=f1, col="blue", size=2)
 
 ```
 From this plot, you can see that women are more likely to be bisexual than men
-on OKcupid. 
+on OKcupid. From the plot above, women tend to be more bisexual more often than 
+men. If you were to chose a bisexual person at random, there is a 0.721 chance 
+that they would be female. If you chose a straight person at random, there is a 
+0.398 chance that they would be male. It is important to note that some users
+did not list sexual orientation, so there were some users not included. 
+
+
+
+```{r, echo=FALSE, fig.width=12, fig.height=6}
 
